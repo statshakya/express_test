@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    <title>express task</title>
+    </head>
+    <body>
+        <h1>Task Manager</h1>
+        <h1>Welcome, <%= user %>!</h1>
+<a href="/logout">Logout</a>
+<hr>
+        <h2>Total no of task <%= tasks.length %></h2>
+        <form action="/add" method="POST">
+            <input type="text" name="note" placeholder="enter task" requried/>
+            <select name="categoryId">
+                <% categories.forEach(cat =>{%>
+                    <option value="<%=cat.id%>"><%=cat.name%></option>
+                <% }) %>
+            </select>
+            <button type="submit">Add task</button>
+        </form>
+
+        <input type="text" id="searchInput" placeholder="search Tasks....." oninput="searchTask()"/> 
+
+        <ul id="taskList">
+            <% tasks.forEach(task=>{ %>
+                <li>
+                <div id="read-<%= task.id %>">    
+                <span><%= task.content %></span>
+                <strong><%= task.category_name || 'none'%></strong>
+                <button onclick="toggleEdit('<%= task.id%>')">Edit</button>
+                
+                <form action="/del/<%= task.id %>" method="post" style="display:inline">
+                <button onclick="return confirm('are u sure?')">delete</button>
+                </form>    
+                </div>
+                <div id="edit-<%=task.id%>" style="display:none;">
+                    <form action="/update/<%= task.id%>" method="post">
+                        <input type="text" name="editcontent" value="<%=task.content%>"/>
+                        <select name="categoryeId">
+                            <% categories.forEach(cat =>{%>
+                                <option value="<%=cat.id%>" <%= task.category_id === cat.id ? 'selected' : '' %>><%=cat.name%></option>
+                            <% }) %>
+                        </select>
+                        <button type="submit">edit</button>
+                        <button type="button" onclick="toggleEdit('<%=task.id%>')">back</button>
+                    </form>
+                </div>
+                </li>
+            <%}) %>
+        </ul>
+        <script>
+             const allCategories = <%- JSON.stringify(categories) %>;
+            function toggleEdit(id){
+                const readDiv= document.getElementById(`read-${id}`);
+                const editDiv= document.getElementById(`edit-${id}`);
+
+                if(readDiv.style.display ==="none"){
+                    readDiv.style.display="block";
+                    editDiv.style.display="none";
+                }else{
+                    readDiv.style.display="none";
+                    editDiv.style.display="block";
+                }
+            }
+           
+
+        
+            async function searchTask(){
+                const query = document.getElementById('searchInput').value;
+                const taskList = document.getElementById('taskList');
+
+                const response = await fetch(`/search?q=${query}`);
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+            console.error("Expected array but got:", data);
+            return; // Stop here so .map doesn't crash the script
+        }
+                // 1. Fixed the .map logic and backtick issue
+                const taskHTML = data.map(task => {
+                    return `
+                        <li>
+                            <div id="read-${task.id}">
+                                <span>${task.content}</span> <button onclick="toggleEdit('${task.id}')">Edit</button> <form action="/del/${task.id}" method="post" style="display:inline;">
+                                    <button onclick="return confirm('are you sure?')">delete</button>
+                                </form>
+                            </div>
+                            <div id="edit-${task.id}" style="display:none;"> <form action="/update/${task.id}" method="post">
+                                    <input type="text" name="editcontent" value="${task.content}"/>
+                                    <select name="categoryeId"> ${allCategories.map(cat => `
+                                            <option value="${cat.id}" ${task.category_id === cat.id ? 'selected' : ''}>
+                                                ${cat.name}
+                                            </option>
+                                        `).join('')} </select>
+                                    <button type="submit">edit</button>
+                                    <button type="button" onclick="toggleEdit('${task.id}')">back</button>
+                                </form>
+                            </div>
+                        </li>
+                    `;
+                }).join(''); // This joins all the <li> elements together
+                
+                taskList.innerHTML = taskHTML;
+            }
+        </script>
+    </body>
+</html>
+

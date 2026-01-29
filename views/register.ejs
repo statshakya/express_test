@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Register</h1>
+    <form action="/register" method="POST">
+        <input type="text" name="username" id="username" placeholder="Username" required oninput="checkuser()">
+        <input type="password" name="password" id="password" placeholder="Password" required>
+        <input type="password" name="repassword" id="repassword" placeholder="reenter your password" required oninput="correctpassword()">
+        <span id="message"></span>
+        <button type="submit" id="button">register</button>
+    </form>
+    <script>
+        let userValid=false;
+        let passValid=false;
+
+        function updateButton(){
+            const btn =document.getElementById('button');
+            btn.disabled = !(userValid && passValid);
+        }
+
+        async function correctpassword(){
+        const password = document.getElementById('password').value;
+        const repassword = document.getElementById('repassword').value;
+        const message = document.getElementById('message');
+        
+        if(repassword.length>0){
+            try{
+            const response = await fetch('/checkpass',{
+                method:'POST',
+                headers:{
+                    'Content-Type': 'application/json'
+                },
+                body:JSON.stringify({password,repassword}),
+            });
+
+            const data = await response.json();
+                 message.innerText = data.message;
+                message.style.color = data.match ? "green" : "red";
+                passValid = data.match;
+        }catch(err){
+            console.error("fetcherror:",err)
+        }
+        }else{
+            message.innerText ="";
+            passValid=false;
+        }
+        updateButton();
+        
+        
+        }
+
+        async function checkuser(){
+            const username = document.getElementById('username').value;
+            const message = document.getElementById('message');
+
+
+            if(username.length>2){
+                try{
+                    const response= await fetch('/check-user',{
+                        method:'POST',
+                        headers:{'Content-type':'application/json'},
+                        body:JSON.stringify({username})
+                    });
+
+                    const data= await response.json();
+                    message.innerText=data.message;
+                    message.style.color= data.check? "red" : "green";
+                    userValid= data.check;
+
+                }
+                catch(err){
+                    console.error("issue:",err);
+                }
+            }else{
+            message.innerText ="Too short";
+            userValid= false;
+        }
+            updateButton();
+        }
+    </script>
+</body>
+</html> 
