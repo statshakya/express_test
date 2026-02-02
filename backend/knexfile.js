@@ -1,24 +1,30 @@
 // Update with your config settings.
-
+require('dotenv').config();
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
  */
 module.exports = {
 
-   development: {
+  //  development: {
+  //   client: 'pg',
+  //   connection: {
+  //     host: '127.0.0.1',
+  //     user:'sahas',
+  //     password:'s1234',
+  //     database:'node_test',
+  //     port:'5432'
+  //   },
+  //   migrations: {
+  //     directory: './migrations'
+  //   }
+  // },
+  development: {
     client: 'pg',
-    connection: {
-      host: '127.0.0.1',
-      user:'sahas',
-      password:'s1234',
-      database:'node_test',
-      port:'5432'
-    },
+    connection: process.env.DATABASE_URL, // Use the string from .env
     migrations: {
-      directory: './migrations'
-    }
+      directory: './migrations',
+    },
   },
-
   staging: {
     client: 'postgresql',
     connection: {
@@ -35,20 +41,29 @@ module.exports = {
     }
   },
 
+  // production: {
+  //   client: 'postgresql',
+  //   connection: {
+  //     database: 'my_db',
+  //     user:     'username',
+  //     password: 'password'
+  //   },
+  //   pool: {
+  //     min: 2,
+  //     max: 10
+  //   },
+  //   migrations: {
+  //     tableName: 'knex_migrations'
+  //   }
+  // }
   production: {
-    client: 'postgresql',
+    client: 'pg',
     connection: {
-      database: 'my_db',
-      user:     'username',
-      password: 'password'
-    },
-    pool: {
-      min: 2,
-      max: 10
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }, // Required for Neon/Render
     },
     migrations: {
-      tableName: 'knex_migrations'
-    }
-  }
-
+      directory: './migrations',
+    },
+  },
 };
