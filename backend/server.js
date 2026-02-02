@@ -32,8 +32,8 @@ app.get('/register',(req,res)=>{
 app.use(cors({
   origin: [
     'http://localhost:5173', // For local testing
-    'https://your-project.pages.dev', // Your Cloudflare Pages URL
-    'https://yourdomain.com' // Your actual domain
+    'https://express-test.pages.dev/', // Your Cloudflare Pages URL
+    'https://shakyasahas.com' // Your actual domain
   ],// This allows all origins temporarily for testing
   credentials: true
 }));
