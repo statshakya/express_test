@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { Pool }= require('pg');
-
+const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const bcrypt = require('bcrypt');
@@ -22,8 +22,13 @@ const session = require('express-session');
 app.use(session({
     secret: 'sahas_secret_key',
     resave:false,
-    saveunInitialized:false,
-    cookie:{maxAge:1000000}  
+    saveUninitialized: false,
+    proxy: true, // Required for Render
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours
+        secure: true, // Required for HTTPS
+        sameSite: 'none' // Required for cross-site cookies
+    } 
 }))
 
 app.get('/register',(req,res)=>{
@@ -32,7 +37,7 @@ app.get('/register',(req,res)=>{
 app.use(cors({
   origin: [
     'http://localhost:5173', // For local testing
-    'https://express-test.pages.dev/', // Your Cloudflare Pages URL
+    'https://express-test.pages.dev', // Your Cloudflare Pages URL
     'https://shakyasahas.com' // Your actual domain
   ],// This allows all origins temporarily for testing
   credentials: true
