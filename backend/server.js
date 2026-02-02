@@ -35,11 +35,7 @@ app.get('/register',(req,res)=>{
     res.render('register');
 });
 app.use(cors({
-  origin: [
-    'http://localhost:5173', // For local testing
-    'https://express-test.pages.dev', // Your Cloudflare Pages URL
-    'https://shakyasahas.com' // Your actual domain
-  ],// This allows all origins temporarily for testing
+  origin: 'https://express-test.pages.dev', // Ensure NO trailing slash
   credentials: true
 }));
 app.use('/checkpass',(req,res)=>{
