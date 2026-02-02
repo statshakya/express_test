@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  /* custom colors */
+  --color-space-dark: #090c22;
+  --color-cosmic-teal: #1a4c6b;
+  --color-dream-orange: #ff7648;
+  --color-memory-gold: #f4d376;
+
+  /* background image */
+  --background-image-main-space: url('/space-bg.png');
+}
+
+/* Base styles for the "Space" feel */
+@layer base {
+  body {
+    @apply bg-main-space bg-cover bg-center bg-fixed min-h-screen text-gray-100;
+    background-color: var(--color-space-dark);
+  }
+}
+
+/* Glassmorphism Utility */
+@layer utilities {
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-xl;
+  }
+  
+  .blur-content {
+     @apply blur-sm pointer-events-none select-none;
+  }
+}
+@keyframes shrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
