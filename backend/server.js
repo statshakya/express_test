@@ -29,7 +29,10 @@ app.use(session({
 app.get('/register',(req,res)=>{
     res.render('register');
 });
-
+app.use(cors({
+  origin: true, // This allows all origins temporarily for testing
+  credentials: true
+}));
 app.use('/checkpass',(req,res)=>{
     const {password,repassword} = req.body;
     if(password === repassword){
