@@ -7,11 +7,10 @@ const PORT = process.env.PORT || 5000;
 const bcrypt = require('bcrypt');
 app.set('view engine', 'ejs');
 //postgresql connnect
+const isProduction = process.env.NODE_ENV === 'production';
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // This is mandatory for Neon/Render
-  }
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 module.exports = pool;
 //middleware replacing the old manuel url prasing code in node

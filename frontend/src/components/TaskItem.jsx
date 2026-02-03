@@ -29,44 +29,48 @@ const TaskItem = ({ task ,onDelete, onUpdate,categories,onToggle,handleRemoveCat
 
     return(
         <div 
-        className={`glass-card p-4 mb-4 flex justify-between 
-        items-center transition-all duration-500
-        ${task.is_completed?' opacity-50 grayscale-[0.5] scale[0.98]':' hover:scale-[1.02] hover:bg-white/15'} 
+        className={`glass-card p-6 flex flex-col min-h-[320px]
+            transition-all duration-500 relative
+        ${task.is_completed?' opacity-40 grayscale-[0.8] scale[0.95]':' hover:scale-[1.03] hover:bg-white/15 shadow-lg'} 
         `}>
-            <div className="flex items-center gap-4 flex-1">
+            {/* status checkbox and category and its edit */}
+            <div className="flex justify-between items-start mb-4">
+                {isEditing?
+                (<span className="text-[10px] uppercase tracking-widest font-bold text-dream-orange">
+                    Editing Task...
+                </span>):(
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-cosmic-teal bg-white/5 px-2 py-1 rounded">
+                    {task.category_name || 'uncategorized'}
+                </span>
+                )}
                 <button
-                onClick={()=> onToggle(task.id)}
-                className={`w-6 h-6 rounded-full border-2
+                onClick={()=>onToggle(task.id)}
+                className={`w-6 h-6 rounded-full border-2 
                 transition-all flex items-center justify-center shrink-0
-                ${task.is_completed ?'bg-dream-orange border-dream-orange':'border-white/20  hover:border-dream-orange/50'}`}>
-                    
-                    {task.is_completed && <span 
-                    className="text-white text-[10px] font-black">✓</span>}
+                ${task.is_completed ?'bg-dream-orange border-dream-orange':'border-white/20 hover:border-dream-orange/50'}`}>
+                {task.is_completed && <span className="text-white text-[10px] font-black">✓</span>}
                 </button>
+                
+
+            </div>
             
-            <div className="flex-1 min-w-0"> 
+            
+            <div className="flex-1 flex flex-col gap-4"> 
                 {isEditing ?(
-                <input
-                type="text"
+                <>
+                <textarea
                 value= {editText}
                 onChange={(e)=>{
                   setEditText(e.target.value)
                   
                 }}
-                className="bg-black/20 text-memory-gold p-1 rounded outline-none border border-dream-orange/30 w-full"  
+                className={`bg-black/40 text-memory-gold p-2 rounded outline-none border border-dream-orange/30 w-full h-24 resize-none`} 
                 autoFocus
                 />
-                ) : (<>
-                    <h3 className="text-memory-gold font-bold text-lg">
-                {task.content}</h3>
-                
-                </>)}
-            
-            <span className="text-cosmic-teal text-xs uppercase tracking-widest font-semibold">
-            {isEditing?(
-                <>
-                {isAddingCat?(
-                    <div className="flex gap-2 animate-in slide-in-from-left-2 duration-400">
+                <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                    {isAddingCat ?(
+                        <div className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-300">
+
                         <input
                         type="text"
                         value={newCatName}
@@ -75,16 +79,24 @@ const TaskItem = ({ task ,onDelete, onUpdate,categories,onToggle,handleRemoveCat
                         }}
                         placeholder="New Category Name"
                         className="bg-dream-orange/10 border border-dream-orange/50 p-1
-                        px-3 rounded-full text-md text-white outline-none"
+                        px-3 rounded-lg text-xs text-white outline-none flex-1"
                         />
-                        <button onClick={ async ()=>{
+                        <button 
+                        className="text-green-400 text-[10px] font-bold"
+                        onClick={ async ()=>{
                             const newcat= await handleAddCategory(newCatName);
                             setSelectedCategory(newcat);
                             setIsAddingCat(false);
                             }}>add</button>
-                        <button onClick={()=>setIsAddingCat(false)}>back</button>
-                    </div>):(
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <button 
+                        className="text-grey-400 text-[10px] font-bold"
+                        onClick={()=>setIsAddingCat(false)}>back</button>
+                    </div>
+                    ):(
+                        
+
+
+                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
                     {categories.map((cat)=>(
                         <div key={cat.id}
                         className={`group flex items-center gap-2 px-3 py-1 rounded-full border tansition-all cursor-pointer 
@@ -106,55 +118,46 @@ const TaskItem = ({ task ,onDelete, onUpdate,categories,onToggle,handleRemoveCat
             </div>
             
                     ))}
-                    <button
-          onClick={()=> setIsAddingCat(true)}
-          className="px-3 py-1 rounded-full border border-dashed border-white/20 text-white/40 hover:text-white hovver:border-white/60">
-            + NEW
-          </button>
+               <button
+                                    onClick={() => setIsAddingCat(true)}
+                                    className="px-2 py-1 rounded-md border border-dashed border-white/20 text-white/40 text-[10px] hover:text-white"
+                                >
+                                    + NEW
+                                </button>
                 
                 </div>
-                 )}
-                 </> 
-               
-                ):(
-                   <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] uppercase tracking-tighter font-bold text-cosmic-teal">
-                            {task.category_name || 'Uncategorized'}
-                        </span>
-                        <span className="text-[10px] text-white/20 italic">
-                            • {getTimeAgo(task.created_at)}
-                        </span>
-                    </div>
-                    
                     )}
-            </span>
+                </div>
+                </>
+                ) : (<>
+                    <h3 className={`text-memory-gold font-bold text-lg leading-tight ${task.is_completed ? 'line-through' : ''}`}>
+                {task.content}</h3>
+                
+                </>)}
+            
             </div>
 
+           {/* BOTTOM: Meta info & Buttons */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+            <span className="text-[10px] text-white/20 italic">
+                {getTimeAgo(task.created_at)}
+            </span>
+
             <div className="flex gap-3">
-                {isEditing ?(
+                {isEditing ? (
                     <>
-                    <button onClick={()=>handleSave()} className="text-green-400 font-bold uppercase text-xs"> save</button>
-                    <button className="text-red-400 hover:text-red-200 transition-colors text-sm font-bold uppercase"
-                    onClick={()=>{
-                        setIsEditing(false)
-                        handleCancel()
-                    }}>back</button>
+                        <button onClick={handleSave} className="text-green-400 font-black uppercase text-[10px] tracking-widest">Save</button>
+                        <button onClick={handleCancel} className="text-red-400 font-black uppercase text-[10px] tracking-widest">Back</button>
                     </>
-                ):(
+                ) : (
                     <>
-                <button className="text-dream-orange hover:text-white transition-colors text-sm font-bold uppercase"
-                onClick={()=>setIsEditing(true)}>edit</button>
-                <button 
-                    onClick={() => onDelete(task.id)}
-                    className="text-dream-orange hover:text-red-500 font-bold uppercase text-xs"
-                >
-                    Delete
-                </button>
-                </>
+                        <button onClick={() => setIsEditing(true)} className="text-white/40 hover:text-dream-orange transition-colors text-[10px] font-bold uppercase">Edit</button>
+                        <button onClick={() => onDelete(task.id)} className="text-white/40 hover:text-red-500 transition-colors text-[10px] font-bold uppercase">Delete</button>
+                    </>
                 )}
             </div>
-            </div>
         </div>
+    </div> 
     );
 }
 

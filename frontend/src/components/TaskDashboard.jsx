@@ -20,6 +20,11 @@ const TaskDashboard = () => {
     const [isCreatingCat, setIsCreatingCat] = useState(false);
     const [newCatName, setNewCatName] = useState("");
 
+    //loadmore
+    const [visibleCount, setVisibleCount] = useState(5);
+    const loadMore = () =>{
+        setVisibleCount(prev => prev + 6);
+    }
 
     const [searchQuery,setSearchQuery]= useState();
     // Fetch Tasks
@@ -165,7 +170,7 @@ const TaskDashboard = () => {
     };
 
     return (
-        <div className="rend max-w-2xl mx-auto h-screen flex flex-col pt-10 px-4">
+        <div className="rend max-w-6xl mx-auto h-screen flex flex-col pt-10 px-4">
             
             {/* STICKY HEADER AREA */}
             <div className="sticky top-0 z-30 bg-transparent backdrop-blur-md pb-4">
@@ -181,32 +186,52 @@ const TaskDashboard = () => {
                     </button>
                 </div>
 
-                {/* ADD TASK FORM */}
-                <div className="glass-card p-4 shadow-2xl border border-white/10">
-                   
-                    <form onSubmit={handleAddTask} className="flex flex-col gap-4">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newContent}
-                                onChange={(e) => setNewContent(e.target.value)}
-                                placeholder="What's the mission?"
-                                className="flex-1 bg-black/40 p-3 rounded-xl outline-none text-white border border-white/5 focus:border-dream-orange/50 transition-all placeholder:text-gray-500"
-                            />
-                            <button type="submit" className="bg-dream-orange text-white px-6 rounded-xl font-bold hover:scale-105 transition-transform active:scale-95">
-                                ADD
-                            </button>
-                        </div>
+             
+                 <input type="text"
+                    placeholder="Search Task"
+                      className="bg-black/40 p-3 mt-4 rounded-xl border border-white/20 text-white"
+                      onChange={(e)=>{
+                        setSearchQuery(e.target.value);
+                        // showNotify(searchQuery);
+                      }}
+                    
+                    />
+            </div>
 
-                        {/* CATEGORY SELECTOR ROW */}
-                        <div className="flex flex-wrap items-center gap-2">
+            {/* SCROLLABLE TASK LIST */}
+            {/* <div className="flex-1 overflow-y-auto p-4 pb-20 custom-scrollbar"> */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+                {!loading && (
+                    <div className="group relative flex flex-col justify-center items-center
+                    glass-card p-6 min-h-[320px] border-2 border-dashed border-white/10 
+                    hover:border-dream-orange/50 transition-all cursor-pointer overflow-hidden">
+                        <div className="flex flex-col items-center group-hover:hidden animate-in fade-in duration-500">
+                            <div className="text-5xl text-white/20 mb-2 font-thin">+</div>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold"> New Task</p>
+                        </div>
+                        <div className="hidden group-hover:flex flex-col w-full
+                        h-full animate-in slide-in-from-bottom-4 duration-300">
+                            <form className="flex flex-col h-full"
+                            onSubmit={handleAddTask}>
+                                <textarea
+                                    value={newContent}
+                                    onChange={(e)=>
+                                        setNewContent(e.target.value)
+                                    }
+                                    placeholder="Enter New Tasks ....."
+                                    className="w-full bg-black/40 p-3 rounded-xl outline-none text-white border border-white/5 focus:border-dream-orange/30 text-sm h-32 resize-none mb-3"
+                                />
+                                      <div className="flex-1 overflow-y-auto mb-4 custom-scrollbar">
+                                        <p className="text-[9px] uppercase text-grey-500 mb-2 font-bold
+                                        tracking-widest">Assign Category</p>
+                                        <div className="flex flex-wrap gap-2">
                             {!isCreatingCat ? (
                                 <>
                                     {categories.map((cat) => (
                                         <div 
                                             key={cat.id}
                                             onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                                            className={`group flex items-center gap-2 px-3 py-1 rounded-full border text-xs transition-all cursor-pointer ${
+                                            className={`group flex items-center gap-2 px-2 py-1 rounded-full border text-[10px] transition-all cursor-pointer ${
                                                 selectedCategory === cat.id 
                                                 ? 'bg-dream-orange border-dream-orange text-white' 
                                                 : 'bg-white/5 border-white/10 text-cosmic-teal hover:border-white/30'
@@ -232,7 +257,7 @@ const TaskDashboard = () => {
                                     </button>
                                 </>
                             ) : (
-                                <div className="flex gap-2 items-center animate-in slide-in-from-left-2">
+                                <div className="flex gap-2 items-center animate-in slide-in-from-left-2 w-full">
                                     <input 
                                         type="text"
                                         autoFocus
@@ -255,26 +280,21 @@ const TaskDashboard = () => {
                                 </div>
                             )}
                         </div>
-                    </form>
-                    
-                </div>
-                 <input type="text"
-                    placeholder="Search Task"
-                      className="bg-black/40 p-3 mt-4 rounded-xl border border-white/20 text-white"
-                      onChange={(e)=>{
-                        setSearchQuery(e.target.value);
-                        // showNotify(searchQuery);
-                      }}
-                    
-                    />
-            </div>
+                        </div>
+                     <button type="submit" className="w-full bg-dream-orange text-white py-2.5 rounded-xl font-black text-[10px] tracking-[0.2em] uppercase hover:bg-orange-500 transition-colors shadow-lg shadow-dream-orange/10">
+                    Deploy Task
+                </button>
+                            </form>
+                        </div>
+                    </div>
 
-            {/* SCROLLABLE TASK LIST */}
-            <div className="flex-1 overflow-y-auto p-4 pb-20 custom-scrollbar">
+                )}
+                
+                
                 {loading ? (
                     <p className="text-cosmic-teal animate-pulse text-center mt-10">Scanning nebula for tasks...</p>
                 ) : tasks.length > 0 ? (
-                    tasks.map((task,index) => (
+                    tasks.slice(0,visibleCount).map((task,index) => (
                       <div
                       key={task.id}
                       draggable
@@ -298,6 +318,20 @@ const TaskDashboard = () => {
                     <p className="text-gray-500 italic text-center mt-10">No tasks found in this sector.</p>
                 )}
             </div>
+            {tasks.length > visibleCount &&(
+                <div className="flex justify-center mt-12 mb-20">
+                    <button onClick={loadMore}
+                    className="group relative px-8 py-3 rounded-full bg-white/5 border
+                    border-white/10 hover:border-dream-orange/50 transition-all duration-500">
+                        <span className="relative z-10 text-[10px] font-black tracking-[0.3em] text-cosmic-teal group-hover:text-white">
+                LOAD MORE DATA
+            </span>
+            {/* Subtle Glow Effect */}
+            <div className="absolute inset-0 bg-dream-orange/0 group-hover:bg-dream-orange/10 blur-xl transition-all rounded-full" />
+
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
