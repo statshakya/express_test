@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 const api = axios.create({
-    baseURL: 'https://cosmic-tasks-backend.onrender.com', // NO trailing slash
+    baseURL: import.meta.env.VITE_API_URL, // NO trailing slash
     withCredentials: true,
 })
 

@@ -5,41 +5,41 @@ require('dotenv').config();
  */
 module.exports = {
 
-  //  development: {
-  //   client: 'pg',
-  //   connection: {
-  //     host: '127.0.0.1',
-  //     user:'sahas',
-  //     password:'s1234',
-  //     database:'node_test',
-  //     port:'5432'
-  //   },
-  //   migrations: {
-  //     directory: './migrations'
-  //   }
-  // },
-  development: {
+   development: {
     client: 'pg',
-    connection: process.env.DATABASE_URL, // Use the string from .env
-    migrations: {
-      directory: './migrations',
-    },
-  },
-  staging: {
-    client: 'postgresql',
     connection: {
-      database: 'my_db',
-      user:     'username',
-      password: 'password'
-    },
-    pool: {
-      min: 2,
-      max: 10
+      host: '127.0.0.1',
+      user:'sahas',
+      password:'s1234',
+      database:'node_test',
+      port:'5432'
     },
     migrations: {
-      tableName: 'knex_migrations'
+      directory: './migrations'
     }
   },
+  // development: {
+  //   client: 'pg',
+  //   connection: process.env.DATABASE_URL, // Use the string from .env
+  //   migrations: {
+  //     directory: './migrations',
+  //   },
+  // },
+  // staging: {
+  //   client: 'postgresql',
+  //   connection: {
+  //     database: 'my_db',
+  //     user:     'username',
+  //     password: 'password'
+  //   },
+  //   pool: {
+  //     min: 2,
+  //     max: 10
+  //   },
+  //   migrations: {
+  //     tableName: 'knex_migrations'
+  //   }
+  // },
 
   // production: {
   //   client: 'postgresql',

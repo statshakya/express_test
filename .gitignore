@@ -1,4 +1,11 @@
+# General
 node_modules/
-.env
 .DS_Store
 dist/
+
+# Backend Secrets
+backend/.env
+
+# Frontend Secrets
+# We ignore the local version so it doesn't overwrite production on GitHub
+frontend/.env.local

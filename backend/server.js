@@ -26,8 +26,9 @@ app.use(session({
     proxy: true, // Required for Render
     cookie: {
         maxAge: 1000 * 60 * 60 * 24, // 24 hours
-        secure: true, // Required for HTTPS
-        sameSite: 'none' // Required for cross-site cookies
+       // Only require secure/HTTPS if we are in production
+        secure: process.env.NODE_ENV === 'production', 
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     } 
 }))
 
@@ -35,7 +36,10 @@ app.get('/register',(req,res)=>{
     res.render('register');
 });
 app.use(cors({
-  origin: 'https://express-test.pages.dev', // Ensure NO trailing slash
+  origin: [
+    'http://localhost:5173',          // Local React
+    'https://express-test.pages.dev'  // Production React
+  ], // Ensure NO trailing slash
   credentials: true
 }));
 app.use('/checkpass',(req,res)=>{
