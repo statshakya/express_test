@@ -165,7 +165,7 @@ const TaskDashboard = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto h-screen flex flex-col pt-10 px-4">
+        <div className="rend max-w-2xl mx-auto h-screen flex flex-col pt-10 px-4">
             
             {/* STICKY HEADER AREA */}
             <div className="sticky top-0 z-30 bg-transparent backdrop-blur-md pb-4">

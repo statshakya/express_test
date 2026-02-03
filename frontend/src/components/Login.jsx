@@ -36,7 +36,6 @@ const Login = () => {
 
         <div className="p-8 pt-4">
         {!usermode ?
-        
         <Register/>
         :
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
