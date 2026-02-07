@@ -331,7 +331,36 @@ app.post('/api/auth/logout',(req,res)=>{
         res.json({message:"logged out"})
     })
 })
+app.get('/api/global', async (req, res) => {
+    try {
+        const { search } = req.query;
 
+        // Note: Changed 'catgeory' to 'category' and 'postition' to 'position'
+        let query = `
+            SELECT tasks.*, 
+                   categories.name as category_name, 
+                   users.username as username 
+            FROM tasks
+            LEFT JOIN categories ON tasks.category_id = categories.id
+            LEFT JOIN users ON tasks.user_id = users.id
+            WHERE 1=1`; // This allows us to use AND safely below
+
+        let params = [];
+        if (search) {
+            // Changed 'task.content' to 'tasks.content' (plural)
+            query += ` AND (tasks.content ILIKE $1 OR categories.name ILIKE $1 OR users.username ILIKE $1)`;
+            params.push(`%${search}%`);
+        }
+
+        query += ` ORDER BY tasks.position ASC, tasks.created_at DESC`;
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err); // Always log the real error to your console!
+        res.status(500).json({ message: err.message }); // Use err.message, not error
+    }
+});
 app.get('/api/tasks', isAuthenticated, async (req, res) => {
     try {
         const currentUserId = req.session.user;
@@ -397,12 +426,37 @@ app.put('/api/tasks/:id', async(req,res)=>{
     try{
         const {id}= req.params;
         const currentuser=req.session.user;
-        const {content,categoryId} =req.body;
+        const {content,categoryId,subtask} =req.body;
 
-        const result =await pool.query(`
-            UPDATE tasks SET content= $1,category_id=$2 WHERE id=$3 AND user_id =$4 
-            RETURNING *
-            `,[content,categoryId,id,currentuser]);
+        let update=[];
+        let params= [];
+        let count = 1;
+
+        if(content != undefined){
+            update.push(`content = $${count++}`);
+            params.push(content);
+        }
+        if(categoryId != undefined){
+            update.push(`category_id = $${count++}`);
+            params.push(categoryId);
+        }
+        if(subtask != undefined){
+            update.push(`subtasks = $${count++} `);
+            params.push(JSON.stringify(subtask));
+        }
+
+        if(update.length === 0) return res.status(400).json({error:"no data recived"})
+        
+        params.push(id,currentuser);
+
+        const query= `UPDATE tasks SET ${update.join(', ')} WHERE 
+        id= $${count++} AND user_id = $${count++} RETURNING *`;
+        await pool.query(query,params);
+    
+        // const result =await pool.query(`
+        //     UPDATE tasks SET content= $1,category_id=$2 WHERE id=$3 AND user_id =$4 
+        //     RETURNING *
+        //     `,[content,categoryId,id,currentuser]);
         const enrichedTasks = await pool.query(`
             SELECT t.*, c.name as category_name FROM tasks t LEFT JOIN
             categories c ON t.category_id = c.id WHERE t.id =$1`,[id]);

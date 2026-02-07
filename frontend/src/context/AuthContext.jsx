@@ -25,16 +25,19 @@ export const AuthProvider= ({children})=>{
     const login =async (Credential) =>{
         const res = await api.post('/api/auth/login',Credential);
         setUser(res.data.user);
+        window.location.href = '/dashboard';
     }
 
     const register = async (Credential) =>{
         const res = await api.post('/api/auth/resgister',Credential);
         setUser(res.data.user);
+        window.location.href = '/dashboard';
     }
 
     const logout = async () => {
         await api.post('/api/auth/logout');
         setUser(null);
+        window.location.href = '/explore';
         // window.location.href = '/login'; // Redirect to login
     };
 

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import TaskItem from './TaskItem';
+import TaskDetails from './TaskDetails';
+import FolderNav from './FolderNav';
 import { useNotify } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -86,6 +88,7 @@ const TaskDashboard = () => {
             showNotify(response.data.message, 3000);
             setNewContent("");
             setSelectedCategory(null);
+            setActiveTask(null);
         } catch (err) {
             const errorMessage = err.response?.data?.error || "Failed to launch task";
             showNotify(`Error: ${errorMessage}`, 5000);
@@ -159,18 +162,44 @@ const TaskDashboard = () => {
         }
     };
 
-    const updateTask = async (id, newContent, categoryId) => {
+    const updateTask = async (id, newContent, categoryId,subtask) => {
         try {
-            const response = await api.put(`/api/tasks/${id}`, { content: newContent, categoryId: categoryId });
+            const response = await api.put(`/api/tasks/${id}`, { content: newContent, categoryId: categoryId,subtask:subtask });
             setTasks(prev => prev.map(task => task.id === id ? response.data.data : task));
+
+            // setActiveTask(prev => prev?.id ==id ? response.data.data :prev);
+            setActiveTask(prev=>{
+                if(prev && prev.id ===id){
+                    return response.data.data;
+                }else{
+                    return prev;
+                }
+            });
             showNotify(response.data.message, 5000);
         } catch (err) {
-            showNotify("Update failed", 5000);
+            showNotify(err.response?.data?.error, 5000);
         }
     };
 
+
+//detail page
+    const [activeTask, setActiveTask] = useState(null); 
+    const [isMenuActive, setIsMenuActive] = useState(false);
     return (
-        <div className="rend max-w-6xl mx-auto h-screen flex flex-col pt-10 px-4">
+        <>
+        <div className="min-h-screen bg-black ">
+        <FolderNav 
+        onMouseEnter={()=>setIsMenuActive(true) }
+        onMouseLeave={()=>setIsMenuActive(false)}
+        isActive={isMenuActive}/>
+        <main className={`relative pt-12 transition-all duration-500 ${isMenuActive? 'pt-[112px]':'pt-12'}`}>
+        <div className="rend max-w-6xl mx-auto h-screen flex flex-col pt-10 px-4 ">
+            <TaskDetails 
+    task={activeTask} 
+    isOpen={!!activeTask} 
+    onClose={() => setActiveTask(null)} 
+    onUpdateSubtasks={updateTask}
+/>
             
             {/* STICKY HEADER AREA */}
             <div className="sticky top-0 z-30 bg-transparent backdrop-blur-md pb-4">
@@ -311,6 +340,7 @@ const TaskDashboard = () => {
                             onToggle={toggleTask}
                             handleRemoveCategory={handleRemoveCategory}
                             handleAddCategory={handleAddCategory}
+                            onView={()=> setActiveTask(task)}
                         />
                         </div>
                     ))
@@ -333,6 +363,9 @@ const TaskDashboard = () => {
                 </div>
             )}
         </div>
+        </main>
+        </div>
+   </>
     );
 };
 

@@ -322,6 +322,36 @@ app.post('/api/auth/logout',(req,res)=>{
     })
 })
 
+app.get('/api/global', async (req, res) => {
+    try {
+        const { search } = req.query;
+
+        // Note: Changed 'catgeory' to 'category' and 'postition' to 'position'
+        let query = `
+            SELECT tasks.*, 
+                   categories.name as category_name, 
+                   users.username as username 
+            FROM tasks
+            LEFT JOIN categories ON tasks.category_id = categories.id
+            LEFT JOIN users ON tasks.user_id = users.id
+            WHERE 1=1`; // This allows us to use AND safely below
+
+        let params = [];
+        if (search) {
+            // Changed 'task.content' to 'tasks.content' (plural)
+            query += ` AND (tasks.content ILIKE $1 OR categories.name ILIKE $1 OR users.username ILIKE $1)`;
+            params.push(`%${search}%`);
+        }
+
+        query += ` ORDER BY tasks.position ASC, tasks.created_at DESC`;
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err); // Always log the real error to your console!
+        res.status(500).json({ message: err.message }); // Use err.message, not error
+    }
+});
 app.get('/api/tasks', isAuthenticated, async (req, res) => {
     try {
         const currentUserId = req.session.user;
