@@ -158,7 +158,7 @@ const TaskDashboard = () => {
             setTasks(prev => prev.filter(task => task.id !== id));
             showNotify(response.data.message, 5000);
         } catch (err) {
-            showNotify("Connection to nebula lost", 5000);
+            showNotify(err.response?.data?.error, 5000);
         }
     };
 
@@ -209,7 +209,10 @@ const TaskDashboard = () => {
                     </h1>
                     <button 
                         onClick={logout}
-                        className="text-xs font-bold text-dream-orange border border-dream-orange/30 px-3 py-1 rounded-full hover:bg-dream-orange hover:text-white transition-all"
+                        className="text-xs font-bold text-dream-orange 
+                        border border-dream-orange/30 px-3 py-1 
+                        rounded-full hover:bg-dream-orange 
+                        hover:text-white transition-all"
                     >
                         LOGOUT
                     </button>

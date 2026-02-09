@@ -18,6 +18,10 @@ const FolderNav = ({onMouseEnter,onMouseLeave,isActive}) => {
                 {/* NAV ITEMS: They reveal as the height expands */}
              <nav className={`flex gap-16 transition-all duration-700 delay-100 
                                 ${isActive ? 'opacity-100' : 'opacity-0'}`}>      
+                    
+                    {user?.role === 'admin' &&(<Link to="/usermanagement"
+                    className="text-[11px] font-bold text-white/40 group-hover/item:text-dream-orange transition-colors tracking-widest uppercase">User</Link>
+                    )}
                     <Link to="/explore"
                     className="text-[11px] font-bold text-white/40 group-hover/item:text-dream-orange transition-colors tracking-widest uppercase">Explore</Link>
                      {user? <Link 
