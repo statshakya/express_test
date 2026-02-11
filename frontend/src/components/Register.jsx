@@ -91,7 +91,7 @@ const Register =() =>{
         e.preventDefault();
         try{
             await register({
-                username,password,repassword});
+                email,username,password,repassword,otp});
             showNotify(`User ${username} Registered`,5000);
         }
         catch(err){

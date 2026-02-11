@@ -42,14 +42,14 @@ const Login = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-2xl text-white font-bold mb-6 italic tracking-tighter">IDENTITY CHECK</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <input 
+                {/* <input 
                     type="email" placeholder="Email" 
                     value={email}
                     className="bg-black/20 p-3 rounded text-white outline-none border border-white/10"
                     onChange={(e) => setEmail(e.target.value)} 
-                />
+                /> */}
                 <input 
-                    type="text" placeholder="username" 
+                    type="text" placeholder="username/Email" 
                     className="bg-black/20 p-3 rounded text-white outline-none border border-white/10"
                     onChange={(e) => setUsername(e.target.value)} 
                 />

@@ -128,7 +128,7 @@ return (
                                         <>
                                             <div className="flex items-center gap-4">
                                                 <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 flex items-center justify-center font-black text-memory-gold shadow-inner">
-                                                    {userdata.username[0].toUpperCase()}
+                                                    {(userdata.username[0])?userdata.username[0].toUpperCase():'U'}
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-lg font-bold tracking-tight">{userdata.username}</span>
