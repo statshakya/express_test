@@ -95,12 +95,55 @@ app.get('/api/auth/me',async(req,res)=>{
 
 })
 
+const dns = require('dns').promises;
 app.post('/api/auth/resgister',async (req,res)=>{
-    const {username, password, repassword, validateOnly} = req.body
+    const {email,username, password, repassword,otp, validateOnly} = req.body
     const passgateway= false;
+    let otpVerified = false; 
     try{
+          if (email) {
+                const domain = email.split('@')[1];
+                // Use !domain instead of empty(domain)
+                if (!domain) return res.status(400).json({ type: "email", error: "Enter a valid email" });
 
-       if(username){
+                try {
+                    const mxRecords = await dns.resolveMx(domain);
+                    if (!mxRecords || mxRecords.length === 0) {
+                        return res.status(400).json({ type: "email", error: "Domain does not exist" });
+                    }
+                    
+                    // Wrap email in an array [email]
+                    const emaildata = await pool.query('SELECT email FROM users WHERE email=$1', [email]); 
+                    if (emaildata.rowCount !== 0) {
+                        return res.status(409).json({ type: "email", error: "Email already registered" });
+                    }
+                    // if (emaildata.rowCount===0){
+                    //     return res.json({type:"email",valid:true});
+                    // }
+                } catch (dnsErr) {
+                    return res.status(400).json({ type: "email", error: "Invalid email domain" });
+                }
+            }
+             
+        if(otp){
+               const result = await pool.query(
+                `SELECT * FROM otp_storage WHERE email = $1 AND code = $2`, 
+                [email, otp]
+                );
+        if (result.rowCount === 0) {
+            return res.status(400).json({ type: "otp", error: "Incorrect or expired code" });
+        }
+
+        // 2. Check if expired
+        const now = new Date();
+        if (new Date(result.rows[0].expires_at) < now) {
+            return res.status(400).json({ type: "otp", error: "Code has expired. Send a new one." });
+        }
+            otpVerified = true;
+        }
+            
+        
+        if(username){
         const userdata = await pool.query(`
             SELECT * FROM users WHERE username=$1`,[username]);
             
@@ -117,29 +160,26 @@ app.post('/api/auth/resgister',async (req,res)=>{
         }
         }
 
+
+      
+
+
         
         if(validateOnly){
-            return res.status(200).json({ message: "Valid so far!" });
+            return res.status(200).json({ 
+                otppass:otpVerified
+                ,message: "Valid so far!" });
         }
 
         const saltRounds= 10;
         const hashedPassword= await bcrypt.hash(password,saltRounds);
 
         const registerdata= await pool.query(`
-        INSERT INTO users (username,password_hash) VALUES($1,$2) RETURNING *`,[username,hashedPassword]);
+        INSERT INTO users (email,username,password_hash) VALUES($1,$2,$3) RETURNING *`,[email,username,hashedPassword]);
         if(registerdata.rows.length>0){
-            // req.session.user= registerdata.rows[0].id;
-            // req.session.username= registerdata.rows[0].username;
-            // res.json({
-            //     user:{
-            //         id:registerdata.rows[0].id,
-            //         username:registerdata.rows[0].username
-            //     },
-            //     message:`user ${registerdata.rows[0].username} has been resgistered`
-            // })
             newuser= registerdata.rows[0];
             const token =jwt.sign(
-                {id:newuser.id,username:newuser.username,role:'user'},
+                {id:newuser.id,email:newuser.email,username:newuser.username,role:'user'},
                 process.env.JWT_SECRET,
                 {expiresIn:'24h'}
             )
@@ -150,7 +190,7 @@ app.post('/api/auth/resgister',async (req,res)=>{
                 maxAge:24*60*60*1000
             })
             res.json({
-                user:{id:newuser.id,username:newuser.username,role:newuser.role},
+                user:{id:newuser.id,email:newuser.email,username:newuser.username,role:newuser.role},
                 message:"User has been Registered"})
         }else{
             res.status(401).json({                                  
@@ -163,6 +203,51 @@ app.post('/api/auth/resgister',async (req,res)=>{
         res.status(500).json({error:err.message})
     }
 })
+
+const{Resend} = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+app.post('/api/auth/send-otp', async (req,res)=>{
+    const {email}= req.body;
+
+    if(!email) return res.status(400).json({error:"Email field shouldnt be empty"})
+    const otp = Math.floor(100000 +Math.random()*900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60000);
+
+    try{
+        await pool.query(`
+            INSERT INTO otp_storage (email,code,expires_at)
+            VALUES ($1,$2,$3) ON CONFLICT (email)
+            DO UPDATE SET 
+                code = EXCLUDED.code,
+                expires_at =EXCLUDED.expires_at,
+                created_at =NOW()`,
+            [email,otp,expiresAt]);
+        const { data, error } = await resend.emails.send({
+            from: 'Verification <onboarding@resend.dev>', // Use this for testing
+            to: [email],
+            subject: 'Your Access Code',
+            html: `
+                <div style="font-family: sans-serif; background: #000; color: #fff; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #ffaa00;">Verification Code</h2>
+                    <p>Your code is below. It will expire in 5 minutes.</p>
+                    <h1 style="letter-spacing: 5px; font-size: 40px; color: #ffaa00;">${otp}</h1>
+                </div>
+            `,
+        });
+
+        if(error){
+            console.error("Resend Error",error);
+            return res.status(400).json({error:"Failed to send email"})
+        }
+
+        res.json({valid:true,message:"Otp code has been forwarded"})
+    }catch(err){
+        res.status(500),json({error:"Internal Server Error"})
+    }
+
+})
+
 app.post('/api/auth/login', async (req,res)=>{
     const {username,password}= req.body;
     try{

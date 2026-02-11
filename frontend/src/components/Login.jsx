@@ -5,6 +5,7 @@ import Register from './Register';
 
 const Login = () => {
     const [username, setUsername] = useState("");
+    const [email,setEmail]= useState("");
     const [password, setPassword] = useState("");
     const[usermode,setUsermode] =useState(true);
     
@@ -24,7 +25,7 @@ const Login = () => {
 
     return (
         <>
-        <div class="max-w-md mx-auto mt-20 p-8">
+        <div className="max-w-md mx-auto mt-20 p-8">
             <div class="glass-card overflow-hidden transition-all duration-500">
             <div className="flex p-1 bg-black/40 m-4 rounded-xl border border-white/40 ">
             <button className={`flex-1 py-2  rounded-lg font-bold transition-all duration-500 rounded p-4 ${usermode?'bg-dream-orange text-white':'text-gray-400 hover:text-white'}`}
@@ -41,6 +42,12 @@ const Login = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-2xl text-white font-bold mb-6 italic tracking-tighter">IDENTITY CHECK</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <input 
+                    type="email" placeholder="Email" 
+                    value={email}
+                    className="bg-black/20 p-3 rounded text-white outline-none border border-white/10"
+                    onChange={(e) => setEmail(e.target.value)} 
+                />
                 <input 
                     type="text" placeholder="username" 
                     className="bg-black/20 p-3 rounded text-white outline-none border border-white/10"

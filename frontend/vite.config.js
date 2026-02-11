@@ -10,9 +10,11 @@ export default defineConfig({
   ],
   server:{
     proxy:{
-      '/api':'http://localhost:3000',
-      '/search': 'http://localhost:3000',
-      '/login': 'http://localhost:3000',
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
     }
   }
 })
