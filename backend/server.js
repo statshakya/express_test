@@ -204,9 +204,9 @@ app.post('/api/auth/resgister',async (req,res)=>{
     }
 })
 
-const{Resend} = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
-
+// const{Resend} = require('resend');
+// const resend = new Resend(process.env.RESEND_API_KEY);
+const nodemailer = require('nodemailer');
 app.post('/api/auth/send-otp', async (req,res)=>{
     const {email}= req.body;
 
@@ -223,23 +223,37 @@ app.post('/api/auth/send-otp', async (req,res)=>{
                 expires_at =EXCLUDED.expires_at,
                 created_at =NOW()`,
             [email,otp,expiresAt]);
-        const { data, error } = await resend.emails.send({
-            from: 'Verification <onboarding@resend.dev>', // Use this for testing
-            to: [email],
-            subject: 'Your Access Code',
-            html: `
-                <div style="font-family: sans-serif; background: #000; color: #fff; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #ffaa00;">Verification Code</h2>
-                    <p>Your code is below. It will expire in 5 minutes.</p>
-                    <h1 style="letter-spacing: 5px; font-size: 40px; color: #ffaa00;">${otp}</h1>
-                </div>
-            `,
-        });
+        // const { data, error } = await resend.emails.send({
+        //     from: 'Verification <onboarding@resend.dev>', // Use this for testing
+        //     to: [email],
+        //     subject: 'Your Access Code',
+        //     html: `
+        //         <div style="font-family: sans-serif; background: #000; color: #fff; padding: 20px; border-radius: 10px;">
+        //             <h2 style="color: #ffaa00;">Verification Code</h2>
+        //             <p>Your code is below. It will expire in 5 minutes.</p>
+        //             <h1 style="letter-spacing: 5px; font-size: 40px; color: #ffaa00;">${otp}</h1>
+        //         </div>
+        //     `,
+        // });
+            const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER, // Your gmail
+        pass: process.env.EMAIL_PASS  // The 16-character App Password
+    }
+});
+const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Your Verification Code',
+    html: `<h1>${otp}</h1>` // Same HTML as before
+};
 
-        if(error){
-            console.error("Resend Error",error);
-            return res.status(400).json({error:"Failed to send email"})
-        }
+await transporter.sendMail(mailOptions);
+        // if(error){
+        //     console.error("Resend Error",error);
+        //     return res.status(400).json({error:"Failed to send email"})
+        // }
 
         res.json({valid:true,message:"Otp code has been forwarded"})
     }catch(err){
