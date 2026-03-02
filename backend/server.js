@@ -44,7 +44,27 @@ app.use(cors({
 }));
 
 
+const can = (actionName) =>{
+    return async( req,res,next)=>{
+        try{
+            const userId= req.user.id;
 
+            const permissionCheck = await pool.query(`
+                SELECT p.name from permissions p 
+                JOIN role_permissions rp ON p.id =rp.permission_id
+                JOIN roles r ON r.id = rp.role_id
+                JOIN users u ON u.role_id = r.id
+                WHERE u.id = $1 AND (p.name=$2 OR r.name='super_admin')`,
+            [userId,actionName]);
+            if(permissionCheck.rowCount>0){
+                return next();
+            }
+            return res.status(403).json({error:`Forbidden: you need the '${actionName}' action.`})
+        }catch(err){
+            res.status(500).json({error:"Authorization Logic failed"})
+        }
+    }
+}
 
 function isAuthenticated(req,res,next){
     const token = req.cookies.token;
@@ -63,15 +83,110 @@ function isAuthenticated(req,res,next){
 
 }
 function isAdmin(req,res,next){
-    console.log("Checking Admin for User:", req.user);
-    if(req.user && req.user.role === 'admin'){
+    // console.log("Checking Admin for User:", req.user);
+    if(req.user && (req.user.role === 'super_admin' || req.user.role === 'admin')){
         next();
     }else{
         res.status(403).json({error:"forbiden user logged in"});
     }
 }
+const isSuperAdmin= async (req,res,next)=>{
+    try{
+    const result = await pool.query(`SELECT r.name FROM roles r
+        JOIN users u ON u.role_id= r.id 
+        WHERE u.id=$1`,
+        [req.user.id]
+    );
+    if (result.rows[0]?.name ==='super_admin'){ 
+        return next();
+        }
+    return res.status(403).json({error:"access Deined: Super Admin Only"})
+        }catch(err){
+            res.status(500).json({error:"Internal server Error"})
+        }
+};
 
+//get all action
 
+app.get('/api/admin/permissions-list', isAuthenticated, isSuperAdmin, async(req,res)=>{
+    try {
+        const result = await pool.query('SELECT * FROM permissions ORDER BY name ASC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({error: "Could not fetch permissions"});
+    }
+})
+
+//get roles and all thier action
+
+app.get('/api/admin/roles-config', isAuthenticated, isSuperAdmin, async(req,res)=>{
+    try{
+    const result = await pool.query(`
+        SELECT r.name as role_name, r.id as role_id, array_agg(p.name)
+        as actions FROM roles r LEFT JOIN role_permissions rp ON r.id= rp.role_id
+        LEFT JOIN permissions p ON rp.permission_id=p.id
+        GROUP BY r.id, r.name`);
+        res.json(result.rows);
+        }catch(err){
+            console.error("Roles error",err);
+            res.status(500).json({error:"failed to fetch roles"})
+        }
+})
+
+app.post('/api/admin/roles',isAuthenticated,isSuperAdmin,async(req,res)=>{
+    const {name} = req.body;
+    if(!name) return res.status(400).json({error:"Role name is required"})
+    
+    try{
+        const roleName = name.toLowerCase().trim().replace(/\s+/g,'');
+        const result = await pool.query(
+            `INSERT INTO roles (name) values ($1) RETURNING id as role_id,name as role_name`,
+            [roleName]
+        );
+
+        const newRole= { ...result.rows[0],action:[]};
+        res.status(201).json({
+            data:newRole,
+            message:`New role '${roleName}' has been established`
+        });
+
+    }catch(err){
+        if(err.code==='23505'){
+            return res.status(409).json({error:"This Role already exists"})
+        }
+        res.status(500).json({error:err.message})
+    }
+})
+
+app.post('/api/admin/roles/assign', isAuthenticated, isSuperAdmin, async (req, res) => {
+    const { roleId, permissionId } = req.body;
+    try {
+        // 1. Check if the assignment already exists
+        const check = await pool.query(
+            'SELECT * FROM role_permissions WHERE role_id = $1 AND permission_id = $2',
+            [roleId, permissionId]
+        );
+
+        if (check.rowCount > 0) {
+            // 2. If it exists, DELETE it (Un-assign)
+            await pool.query(
+                'DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2',
+                [roleId, permissionId]
+            );
+            return res.json({ message: "Protocol revoked successfully", action: 'removed' });
+        } else {
+            // 3. If it doesn't exist, INSERT it (Assign)
+            await pool.query(
+                'INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2)',
+                [roleId, permissionId]
+            );
+            return res.json({ message: "Protocol authorized successfully", action: 'added' });
+        }
+    } catch (err) {
+        console.error("Assignment Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 //react ports
 
 app.get('/api/auth/me',async(req,res)=>{
@@ -84,7 +199,9 @@ app.get('/api/auth/me',async(req,res)=>{
             user:{
                 id:decoded.id,
                 username: decoded.username,
-                role:decoded.role
+                email:decoded.email,
+                role:decoded.role,
+                role_id:decoded.role_id
             }
         });
 
@@ -140,9 +257,7 @@ app.post('/api/auth/resgister',async (req,res)=>{
             return res.status(400).json({ type: "otp", error: "Code has expired. Send a new one." });
         }
             otpVerified = true;
-        }
-            
-        
+        }    
         if(username){
         const userdata = await pool.query(`
             SELECT * FROM users WHERE username=$1`,[username]);
@@ -158,24 +273,18 @@ app.post('/api/auth/resgister',async (req,res)=>{
         if(password.length<3){
             return res.status(400).json({type:"password",error:"passwords should be longer than 3 letter"});
         }
-        }
-
-
-      
-
-
-        
+        } 
         if(validateOnly){
             return res.status(200).json({ 
                 otppass:otpVerified
                 ,message: "Valid so far!" });
         }
-
         const saltRounds= 10;
         const hashedPassword= await bcrypt.hash(password,saltRounds);
-
+        const userRoleRes = await pool.query(`SELECT id FROM roles WHERE name='user'`); 
+        const defaultRoleId = userRoleRes.rows[0].id;
         const registerdata= await pool.query(`
-        INSERT INTO users (email,username,password_hash) VALUES($1,$2,$3) RETURNING *`,[email,username,hashedPassword]);
+        INSERT INTO users (email,username,password_hash,status,role_id) VALUES($1,$2,$3,true,$4) RETURNING *`,[email,username,hashedPassword,defaultRoleId]);
         if(registerdata.rows.length>0){
             newuser= registerdata.rows[0];
             const token =jwt.sign(
@@ -204,6 +313,83 @@ app.post('/api/auth/resgister',async (req,res)=>{
     }
 })
 
+app.post('/api/auth/resetpassword',async (req,res)=>{
+    const {email,otp,password,validateOnly}= req.body;
+    let otpVerified= false;
+    try{
+        if(email){
+            const domain= email.split('@')[1];
+            if(!domain) return res.status(400).json({type:"email",error:"Enter correct email"});
+            try{
+                const mxRecords= await dns.resolveMx(domain);
+                if(!mxRecords || mxRecords.length===0){
+                    res.status(400).json({type:"email",error:"Domain doesnt exist"})
+                }
+                const emailData= await pool.query(`SELECT email FROM users WHERE email= $1`,[email]);
+
+                if(emailData.rowCount===0){
+                    res.status(404).json({type:"email",error:"email doesnt exist"});
+                }
+            }catch(dnsErr){
+                res.status(404).json({type:"email",error:"invalid doamin"});
+            }
+
+        }
+        if (otp) {
+    const result = await pool.query(`SELECT * FROM otp_storage WHERE email=$1 and code=$2`, [email, otp]);
+    if (result.rowCount === 0) {
+        return res.status(400).json({ type: "otp", error: "Otp code incorrect" });
+    }
+    const now = new Date();
+    if (new Date(result.rows[0].expires_at) < now) {
+        return res.status(400).json({ type: "otp", error: "Otp code expired" });
+    }
+    otpVerified = true;
+}
+let newPassword;
+if (password && password.length > 0) {
+            const userlookup= await pool.query(`SELECT password_hash FROM users WHERE email=$1`,[email]);
+        if(userlookup.rowCount>0){   
+        const storedhash = userlookup.rows[0].password_hash;
+        if(password.length<3){
+                return res.status(400).json({type:"password",error:"passwords should be longer than 3 letter"});
+        }
+        const sameAsOld= await bcrypt.compare(password,storedhash);
+        if(sameAsOld){
+            return res.status(400).json({
+                type: "password",
+                error: "you cannot use same password as old one"
+            })
+        }
+        const saltRounds=10;
+        newPassword= await bcrypt.hash(password,saltRounds);
+        }
+        }
+         if(validateOnly){
+            return res.status(200).json({ 
+                otppass:otpVerified
+                ,message: "Valid so far!" });
+        }
+        const resetpassword= await pool.query(`UPDATE users SET password_hash=$1 
+            WHERE email=$2 RETURNING id,username,email,role`,[newPassword,email]);
+        if(resetpassword.rowCount>0){
+            const resetUser= resetpassword.rows[0];
+          
+            res.json({
+                    message:"User password has been reset"
+            })
+        }else{
+            res.status(401).json({                                  
+            error:"Issue with Password reset"
+            })
+        
+                }
+    }catch(err){
+        res.status(404).json({error:err.message});
+    }
+
+})
+
 // const{Resend} = require('resend');
 // const resend = new Resend(process.env.RESEND_API_KEY);
 const nodemailer = require('nodemailer');
@@ -211,6 +397,7 @@ app.post('/api/auth/send-otp', async (req,res)=>{
     const {email}= req.body;
 
     if(!email) return res.status(400).json({error:"Email field shouldnt be empty"})
+    
     const otp = Math.floor(100000 +Math.random()*900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60000);
 
@@ -263,11 +450,12 @@ await transporter.sendMail(mailOptions);
 })
 
 app.post('/api/auth/login', async (req,res)=>{
-    const {username,password}= req.body;
     try{
         const {username,password}= req.body;
         const userdata = await pool.query(`
-            SELECT * FROM users where username=$1 or email=$1`,[username]);
+            SELECT u.*,r.name as role_name FROM users u
+            JOIN roles r ON u.role_id = r.id 
+            where (u.username=$1 or u.email=$1) AND u.status=true`,[username]);
         const user= userdata.rows[0];
             if(!user){
                 return res.status(401).json({error:"user not found"})
@@ -277,7 +465,11 @@ app.post('/api/auth/login', async (req,res)=>{
 
         if(isMatch){
             const token = jwt.sign(
-                {id:user.id, username:user.username,role:user.role},
+                {id:user.id, 
+                username:user.username,
+                role:user.role_name,
+                email:user.email,
+                role_id:user.role_id},
                 process.env.JWT_SECRET,
                 {expiresIn:'24h'}
             );
@@ -288,7 +480,11 @@ app.post('/api/auth/login', async (req,res)=>{
                 maxAge:24*60*60*1000
             });
             res.json({
-                user:{id:user.id,username:user.username,role:user.role},
+                user:{
+                    id:user.id,
+                    username:user.username,
+                    email:user.email,
+                    role:user.role_name},
                 message:"login Successful"
             });
         }else{
@@ -300,12 +496,98 @@ app.post('/api/auth/login', async (req,res)=>{
     }catch(err){
         res.status(500).json({error:err.message})
     }
+
 })
 
 app.post('/api/auth/logout',(req,res)=>{
     res.clearCookie('token');
     res.json({message:"logged out"})
    
+})
+
+app.post('/api/user/edit', isAuthenticated, async (req,res)=>{
+try{
+    const {username,email,password,currentPassword} = req.body;
+    const currentUserId= req.user.id;
+    const userData = await pool.query(`
+        SELECT u.*, r.name as role_name FROM users u
+        JOIN roles r ON u.role_id = r.id where u.id=$1 
+        `,[currentUserId]);
+    const user= userData.rows[0];
+    let update=[];
+    let params=[];
+    let count=1;
+    if(password || currentPassword){
+        if(!currentPassword) return res.status(400).json({message:"Current Password required to make Changes"});
+        const isMatch= await bcrypt.compare(currentPassword,userData.rows[0].password_hash); 
+        if(!isMatch) return res.status(401).json({message:"Invalid current Password"}); 
+    }
+    if(username && username!== user.username){
+        update.push(`username =$${count++}`);
+        params.push(username);
+    }
+
+    if(email && email!== user.email){
+        const domain= email.split('@')[1];
+        if(!domain) return res.status(400).json({error:"Incorrect email format"})
+        const mxRecords = await dns.resolveMx(domain);
+        if(!mxRecords || mxRecords.length ===0){
+            return res.status(400).json({error:"Domain doesnt exist"});
+        }
+        update.push(`email =$${count++}`);
+        params.push(email);
+    }
+
+    if(password){
+        const saltRounds=10;
+        const newPassword= await bcrypt.hash(password,saltRounds);
+        update.push(`password_hash= $${count++}`);
+        params.push(newPassword);   
+        
+    }
+
+    if(update.length===0){
+        return res.status(400).json({message:"No Changes Detected"})
+    }
+    params.push(currentUserId);
+    const finalQuery = `UPDATE users SET ${update.join(',')} WHERE
+    id= $${count} RETURNING id,username,email,role_id`;
+    const result = await pool.query(finalQuery,params);
+    const updatedUser= result.rows[0];
+    
+    const newToken = jwt.sign(
+        {
+            id:updatedUser.id,
+            username:updatedUser.username,
+            role:user.role_name,
+            email:updatedUser.email,
+            role_id:updatedUser.role_id
+        },
+        process.env.JWT_SECRET,
+        {expiresIn:'24h'}
+    )
+    res.cookie('token', newToken, {
+    httpOnly: true,
+ secure: true,
+sameSite: 'none',
+   maxAge: 24 * 60 * 60 * 1000
+});
+    res.json({
+        user:{
+            id:updatedUser.id,
+            username:updatedUser.username,
+            role:user.role_name,
+            email:updatedUser.email,
+            role_id:updatedUser.role_id
+        },
+        message: "profile updated"
+    })
+    
+
+
+}catch(err){
+    res.status(400).json({message:err.message})
+}
 })
 app.get('/api/global', async (req, res) => {
     try {
@@ -319,7 +601,7 @@ app.get('/api/global', async (req, res) => {
             FROM tasks
             LEFT JOIN categories ON tasks.category_id = categories.id
             LEFT JOIN users ON tasks.user_id = users.id
-            WHERE 1=1`; // This allows us to use AND safely below
+            WHERE 1=1 AND tasks.show_status=false`; // This allows us to use AND safely below
 
         let params = [];
         if (search) {
@@ -363,7 +645,7 @@ app.get('/api/tasks', isAuthenticated, async (req, res) => {
 });
 
 // to add task
-app.post('/api/tasks', isAuthenticated, async(req,res)=>{
+app.post('/api/tasks', isAuthenticated,can('task:create'), async(req,res)=>{
     try{
         const {note,categoryId}= req.body;
         // const currentuser = req.session.user;
@@ -381,7 +663,7 @@ app.post('/api/tasks', isAuthenticated, async(req,res)=>{
     }
 })
 
-app.put('/api/tasks/:id',isAuthenticated, async(req,res)=>{
+app.put('/api/tasks/:id',isAuthenticated, can('task:edit'), async(req,res)=>{
     try{
         const {id}= req.params;
         // const currentuser=req.session.user;
@@ -430,10 +712,9 @@ app.put('/api/tasks/:id',isAuthenticated, async(req,res)=>{
         res.status(500).json({error:err.message});
     }
 })
-app.patch('/api/tasks/:id/toggle',isAuthenticated,async (req,res)=>{
+app.patch('/api/tasks/:id/toggle',isAuthenticated, can('task:edit'),async (req,res)=>{
     try{
         const {id} = req.params;
-        // const currentuser = req.session.user;
         const currentuser=req.user.id;
 
         const taskRes= await pool.query(`
@@ -459,6 +740,28 @@ app.patch('/api/tasks/:id/toggle',isAuthenticated,async (req,res)=>{
 
     }catch(err){
         res.status(500).json({error:err.message})
+    }
+})
+
+app.patch('/api/tasks/:id/show',isAuthenticated, can('task:edit'), async(req,res)=>{
+    try{
+        const {id} =req.params;
+        const currentuser  = req.user.id
+
+        const taskdatas= await pool.query(`SELECT show_status FROM tasks WHERE user_id=$1 AND id=$2`,[currentuser,id]);
+        if(taskdatas.rowCount===0) return res.status(400).json({error:"task not found"});
+        const newShowStatus = !taskdatas.rows[0].show_status;
+
+        const updateTask= await pool.query(`
+            UPDATE tasks SET show_status=$1,updated_at=now()
+            where id=$2 and user_id=$3 RETURNING *`,[newShowStatus,id,currentuser]);
+        if(updateTask.rowCount===0) return res.status(400).json({error:"task not updated issue with query"});
+        const updatedData = await pool.query(`SELECT t.*, c.name as category_name FROM
+            tasks t LEFT JOIN categories c ON t.category_id= c.id WHERE
+            t.id=$1`,[id])
+        res.json({data:updatedData.rows[0],message:"Show Status Updated"})
+    }catch(err){
+res.status(500).json({error:err.message})
     }
 })
 
@@ -560,10 +863,15 @@ app.delete('/api/categories/:id',isAuthenticated, async(req,res)=>{
 app.get('/api/admin/user',isAuthenticated,isAdmin,async(req,res)=>{
     try{
         currentuser= req.user.id
-        const result = await pool.query('SELECT id,username,role,status from users WHERE id!=$1 ORDER BY id ASC',[currentuser]);
+        const result = await pool.query(`
+            SELECT u.id,u.username,u.role_id,u.status, r.name as role 
+            FROM users u 
+            JOIN roles r ON u.role_id = r.id
+            WHERE u.id!=$1 ORDER BY u.id ASC`,[currentuser]);
         res.json(result.rows);
 
     }catch(err){
+        console.error("get user error",err);
         res.status(404).json({error:err.message})
     }
 })
@@ -572,19 +880,29 @@ try{
     const {id} = req.params;
     const {username,role}= req.body;
 
-    const result = await pool.query(`UPDATE users SET username=$1 ,role=$2 
-        WHERE id=$3 RETURNING id,username,role,status`,[username,role,id]);
+    const result = await pool.query(`
+        UPDATE users SET username=$1 ,role_id=$2 
+        WHERE id=$3 RETURNING id,username,role_id,status`,[username,role,id]);
+
     if(result.rowCount===0) return res.json({message:"issue when updating user"})
-    res.json({data:result.rows[0],message:`User data of ${username} has been updated`})
+    
+    const enrichedData= await pool.query(`
+        SELECT u.id, u.username,u.role_id,u.status,r.name as roles 
+        FROM users u 
+        JOIN roles r ON u.role_id=r.id
+        WHERE u.id =$1`,[id]);
+    res.json({data:enrichedData.rows[0],message:`User data of ${username} has been updated`})
 
 }
 catch(err){
+    console.error("user edit:",err);
     res.status(404).json({error:err.message});
 }
 })
 app.delete('/api/admin/user/:id',isAuthenticated,isAdmin, async(req,res)=>{
     try{
         const {id}= req.params;
+        await pool.query('DELETE FROM tasks WHERE user_id=$1',[id]);
         const result = await pool.query(`
             DELETE from users where id=$1`,[id]);
         if(result.rowCount===0){

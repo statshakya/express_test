@@ -7,6 +7,7 @@ const TaskItem = ({
   onUpdate,
   categories,
   onToggle,
+  onStatusChange,
   handleRemoveCategory,
   handleAddCategory,
   onView,
@@ -61,6 +62,17 @@ const TaskItem = ({
         
         {/* global case 1 */}
         {isGlobal?'':
+        <>
+        <button
+          onClick={() => onStatusChange(task.id)}
+          className={`w-6 h-6 rounded-full border-2 
+                transition-all flex items-center justify-center shrink-0
+                ${task.is_completed ? "bg-dream-orange border-dream-orange" : "border-white/20 hover:border-dream-orange/50"}`}
+        >
+          {task.show_status ? (
+            <span className="text-white text-[10px] font-black">hide</span>
+          ):( <span className="text-white text-[10px] font-black">show</span>)}
+        </button>
         <button
           onClick={() => onToggle(task.id)}
           className={`w-6 h-6 rounded-full border-2 
@@ -71,6 +83,7 @@ const TaskItem = ({
             <span className="text-white text-[10px] font-black">✓</span>
           )}
         </button>
+        </>
         }
       </div>
 

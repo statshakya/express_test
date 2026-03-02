@@ -2,6 +2,8 @@ import {Link} from 'react-router-dom';
 import {useAuth} from '../context/AuthContext';
 const FolderNav = ({onMouseEnter,onMouseLeave,isActive}) => {
     const {user,logout} = useAuth();
+
+                    // console.log(user);
     return (
         /* The header is fixed, but its content will push the rest of the app down */
         <header className="fixed top-0 left-0 w-full z-50 flex flex-col items-center"
@@ -19,7 +21,7 @@ const FolderNav = ({onMouseEnter,onMouseLeave,isActive}) => {
              <nav className={`flex gap-16 transition-all duration-700 delay-100 
                                 ${isActive ? 'opacity-100' : 'opacity-0'}`}>      
                     
-                    {user?.role === 'admin' &&(<Link to="/usermanagement"
+                    {user?.role === 'super_admin' &&(<Link to="/usermanagement"
                     className="text-[11px] font-bold text-white/40 group-hover/item:text-dream-orange transition-colors tracking-widest uppercase">User</Link>
                     )}
                     <Link to="/explore"
@@ -48,7 +50,26 @@ const FolderNav = ({onMouseEnter,onMouseLeave,isActive}) => {
                 <span className="text-[10px] font-black tracking-[0.5em] text-white uppercase italic">
                     Menu
                 </span>
+                
             </div>
+            {user && (
+                <Link to="/userprofile" className="absolute top-full left-8 group">
+                    <div className="flex items-center gap-3 bg-zinc-900/95 border-x border-b border-white/10 p-3 rounded-b-2xl hover:bg-dream-orange/5 transition-all duration-300">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 flex items-center justify-center font-black text-memory-gold text-sm shadow-inner group-hover:border-dream-orange/50">
+                            {user.username[0].toUpperCase()}
+                        </div>
+                        <div className="flex flex-col pr-4">
+                            <span className="text-[10px] font-black text-white uppercase italic leading-none mb-1">
+                                {user.username}
+                            </span>
+                            <span className="text-[7px] border border-dream-orange/40 text-dream-orange rounded px-1.5 py-0.5 font-bold uppercase tracking-widest w-fit">
+                                {user.role}
+                            </span>
+                        </div>
+                    </div>
+                </Link>
+            )}
+            
         </header>
     );
 };

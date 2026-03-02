@@ -106,6 +106,17 @@ const TaskDashboard = () => {
         showNotify(err.response?.data?.error)
       }
     }
+    const toggleShowStatus = async (id)=>{
+        try{
+            const response = await api.patch(`/api/tasks/${id}/show`);
+            setTasks(prev=> prev.map(task=>
+                task.id ===id ? response.data.data :task
+            ))
+        }catch(err){
+            console.error(err);
+            showNotify(err.response?.data?.error)
+        }
+    }
     const handleDragStart =(index)=>{
       setDraggedItemIndex(index);
     }
@@ -341,6 +352,7 @@ const TaskDashboard = () => {
                             onUpdate={updateTask}
                             categories={categories}
                             onToggle={toggleTask}
+                            onStatusChange={toggleShowStatus}
                             handleRemoveCategory={handleRemoveCategory}
                             handleAddCategory={handleAddCategory}
                             onView={()=> setActiveTask(task)}

@@ -7,7 +7,7 @@ import Login from './components/Login';
 import GlobalExplore from './components/GlobalExplore';
 const App=()=> {
   const { user, loading } = useAuth();
- 
+  // console.log(user.role);
    if (loading) return <div className="text-white p-10">Initialising systems...</div>;
   // return user ? <TaskDashboard /> : <Login />;
   return(
@@ -16,7 +16,8 @@ const App=()=> {
         <Route path="/login" element={!user ? <Login /> : <navigate to="/dashboard"/>} />
         <Route path="/explore" element={<GlobalExplore />}/>
         <Route path="/dashboard" element={user ?<TaskDashboard />:<Navigate to="/login"/>}/>
-        <Route path="/usermanagement" element={user?.role === "admin" ? <UserManagement /> :<Navigate to="/dashboard"/>}/>
+        <Route path="/userprofile" element={user ?<UserDashboard />:<Navigate to="/login"/>}/> 
+        <Route path="/usermanagement" element={user?.role === "super_admin" ? <UserManagement /> :<Navigate to="/dashboard"/>}/>
         <Route path="*" element={<Navigate to="/explore"/>} />
       </Routes>
     </Router>
